@@ -1,0 +1,473 @@
+
+import { ScrollView, Button, CheckBox, SpinBox, Slider, GroupBox, LineEdit, StandardListView,
+    ComboBox, HorizontalBox, VerticalBox, GridBox, TabWidget, TextEdit, AboutSlint, ListView } from "std-widgets.slint";
+
+LabeledLineInput := HorizontalLayout{
+    property <string> label;
+    property <string> value;
+    text := Text { 
+        text: label;
+    }
+    input := LineEdit{
+        text: value;
+    }
+}
+
+NHSSectionScoreInput := HorizontalLayout{
+    property <string> label;
+    property <int> value <=> input.current-index;
+    callback changed;
+    //alignment: center;
+    text := Text{
+        horizontal-alignment: right;
+        text: label + ": ";
+    }
+    input := ComboBox {
+        model: ["0", "1", "2", "3", "4"];
+        width: 60px;
+        selected => { root.changed() }
+    }
+}
+
+
+StudentSearch := HorizontalLayout{
+    property <[string]> searched: [f.text , m.text, l.text,c.text,i.text];
+    callback search();
+    VerticalLayout{
+        padding: 5px;
+        HorizontalBox{ 
+            padding-top: 0px;
+            padding-left: 0px;
+            padding: 3px;
+            height: 30px;
+            Text{
+                text:"First";
+            }
+            f := LineEdit{
+            }
+            Text{
+                text:"MI";
+            }
+            m := LineEdit{ 
+            }   
+            Text{
+                text:"Last";
+            }
+            l := LineEdit { 
+            }
+        }
+        HorizontalBox{ 
+            padding-top: 0px;
+            padding-left: 0px;
+            padding: 3px;
+            height: 30px;
+            Text{
+                text:"Class Year";
+            }
+            c := LineEdit{
+            }
+            Text{
+                text:"Induction Year";
+            }
+            i := LineEdit{
+            }
+        
+        }
+    }
+    searchb := Button {
+        text:"Search";
+        clicked => {search();}
+    }
+}
+
+StudentServiceSearch := VerticalBox{
+    property <[string]> searched: [student.searched[0],student.searched[1],student.searched[2],student.searched[3],student.searched[4], y.text, semester.current-index , type.current-index];
+    callback ssearch();
+    student := StudentSearch{
+        search => { ssearch(); }
+    }
+    HorizontalBox{ 
+        padding-top: 0px;
+        padding-left: 0px;
+        padding: 0px;
+        height: 30px;
+        Text{
+            text:"Year Performed ";
+        }
+        y := LineEdit{
+        }
+        semester := ComboBox {
+            model: ["S1/S2", "S1", "S2"];
+            current-index: 0;
+        }
+        type := ComboBox {
+            model: ["Group/Personal", "Group", "Personal"];
+            current-index: 0;
+        }
+    }
+
+}
+
+export struct InductionCanidate := {
+    catigories: [int],
+    decision: string,
+    first_name: string,
+    middle_inital: string,
+    last_name: string,
+    grade: int,
+    id: int,
+}
+
+export struct LiboCanidateInfo := {
+    id: int,
+    first_name: string,
+    last_name: string
+}
+
+export global Search :={
+    callback search-student([string],int) -> [StandardListViewItem];
+    callback search-student-record([string],int) -> [StandardListViewItem];
+    callback get-students() -> [StandardListViewItem];
+}
+
+export global Interface := {
+    callback create-person([string]);
+    callback create-service-logs(int,bool,bool,bool,bool,[string]);
+    callback add-service-hours(int,[string]);
+    callback sum-service-hours([string]) -> int;
+    callback prepare-induction-canidates();
+    callback sort-induction-canidates();
+    callback induct-canidates();
+    property <[InductionCanidate]> canidates; //: [{catigories:[Math.round(1),2,3,4,5],decision:"hello",first_name:"Nathaniel",middle_inital:"D",last_name:"Parker"}];
+    callback get-libo-induction-canidates(int) -> [LiboCanidateInfo];
+    callback make-decision-on-libo-canidate(int,bool);
+    callback export-induction-logs();
+}
+
+MainWindow := Window {
+    property <[string]> vsearched: ["","","","","","","",""];
+    property <[string]> esearched: ["","","","","","","",""];
+    property <[string]> nsearched: ["","","","","",""];
+    property <[StandardListViewItem]> people-list;
+    property <int> force_update_workaround: 0;
+    
+    TabWidget {  
+        Tab{
+            title: "View";
+            VerticalBox { 
+                padding: 0px;
+                vsearch := StudentServiceSearch{
+                    ssearch => { 
+                        vsearched = vsearch.searched;
+                        force-update-workaround += 1;
+                    }
+                }
+                //vsearch.student.search.clicked => {}
+                HorizontalBox { 
+                    padding-top: 0px;
+                    padding-left: 0px;
+                    padding: 0px;
+                    height: 30px;
+                    Button { 
+                        text:"Accumulate";
+                        clicked => { 
+                            added-hours.text = Interface.sum-service-hours(vsearched);
+                        }
+                    }
+                    added-hours := LineEdit{
+                        text:"200";
+                        enabled:false;
+
+                    }
+                    Text{
+                        text:"hours";
+                    }
+                }
+                StandardListView{
+                    model: Search.search-student-record(vsearched,force-update-workaround);
+                    current-item: -1;
+                }
+            }   
+        }
+        Tab{
+            title:"Edit";
+            VerticalBox { 
+                padding: 0px;
+                esearch := StudentServiceSearch{
+                    ssearch => { 
+                        esearched = esearch.searched;
+                        force-update-workaround += 1;
+                    }
+                }
+                HorizontalBox { 
+                    padding-top: 0px;
+                    padding-left: 0px;
+                    padding: 0px;
+                    height: 30px;
+                    Button { 
+                        text:"Add";
+                        clicked => {
+                            Interface.add-service-hours(hours-to-add.text.to_float(),esearched);
+                            esearch.ssearch();
+                        }
+                    }
+                    hours-to-add := LineEdit{
+
+                    }
+                    Text{
+                        text:"hours";
+                    }
+                    Button{
+                        text:"Remove";
+                        clicked => {
+                            Interface.add-service-hours(hours-to-add.text.to_float() * -1,esearched);
+                            esearch.ssearch();
+                        }
+                    }
+                }
+                StandardListView{
+                    model: Search.search-student-record(esearched,force-update-workaround);
+                }
+            }  
+        }
+        Tab{
+            title:"New Hour Entries";
+            VerticalBox { 
+                ssearch := StudentSearch {
+                    search => { 
+                        nsearched = ssearch.searched;
+                        force-update-workaround += 1;
+                    }
+                }
+                Rectangle{ 
+                    height: 2px;
+                    background: black;
+                }
+                HorizontalBox{ 
+                    padding-top: 0px;
+                    padding-left: 0px;
+                    padding: 0px;
+                    height: 30px;
+                    Text{
+                        text:"Year Performed ";
+                    }
+                    csdata := LineEdit{
+                        edited => { self.text = self.text.is_float() ? self.text : ""; }
+                    }
+                    css1 := CheckBox { 
+                        text:"S1";
+                    }
+                    css2 := CheckBox { 
+                        text:"S2";
+                    }
+                    csg := CheckBox { 
+                        text:"Group";
+                    }
+                    csp := CheckBox { 
+                        text:"Personal";
+                    }
+                }
+                Button{
+                   text:"Create Entries";
+
+                   clicked => { 
+                        Interface.create-service-logs(csdata.text.to-float(),css1.checked,css2.checked,csg.checked,csp.checked,nsearched);
+                        esearch.ssearch();
+                        vsearch.ssearch();
+                    }
+                }
+                StandardListView{
+                    model: Search.search-student(nsearched,force-update-workaround);
+                }
+
+            }
+        }
+        Tab{
+            title:"Induct People";
+            VerticalLayout{
+                HorizontalLayout { 
+                    Button{
+                        text: "Select Import File";
+                        clicked => {Interface.prepare-induction-canidates()}
+                    }
+                    Button{
+                        text: "Sort";
+                        clicked => { Interface.sort-induction-canidates() }
+                    }
+                    Button{
+                        text: "Apply";
+                        clicked => { 
+                            Interface.induct-canidates();
+                            force-update-workaround += 1;
+                         }
+                    }
+                }
+                t := ListView {
+
+                    
+
+                    for data in Interface.canidates : HorizontalLayout {
+
+                        height: 30px;
+                        //width: parent.width;
+                        alignment: stretch;
+                        HorizontalLayout {  
+                            width: 200px;
+                            Text {
+                                text: data.first_name + " " + data.middle_inital + " " + data.last_name;
+                            }
+                        }
+
+                        HorizontalLayout { 
+                            //width: 600px;
+                            spacing: 5px;
+                            //width: parent.width - 800px;
+                        
+                            Text{
+                                text: "Grade: " + data.grade;
+                            }
+
+                            t1 := NHSSectionScoreInput { 
+                                label: "Scholership";
+                                value: data.catigories[0];
+                                changed => { data.catigories[0] = value }
+                            }
+
+                            t2 := NHSSectionScoreInput { 
+                                label: "Service";
+                                value: data.catigories[1];
+                                changed => { data.catigories[1] = value }
+                            }
+
+                            t3 := NHSSectionScoreInput { 
+                                label: "Leadership";
+                                value: data.catigories[2];
+                                changed => { data.catigories[2] = value }
+                            }
+
+                            t4 := NHSSectionScoreInput { 
+                                label: "Charicter";
+                                value: data.catigories[3];
+                                changed => { data.catigories[3] = value }
+                            }
+                            Text{
+                                text: "Total : " + (data.catigories[0] + data.catigories[1] + data.catigories[2] + data.catigories[3]);
+                            }
+                            decision := ComboBox {
+                                model: ["Not Reviewed","Induct", "Form not returned","Lack of leadership", "Lack of charciter", "Lack of Service", "Late", "Not Signed"];
+                                current-value: data.decision;
+                                selected => { data.decision = current-value }
+                            }
+                        }
+                    }
+                }
+                
+            }
+        }
+        Tab{
+            title:"Create People";
+            VerticalLayout{
+                padding: 5px;
+                HorizontalBox{ 
+                    padding-top: 0px;
+                    padding-left: 0px;
+                    padding: 3px;
+                    height: 30px;
+                    Text{
+                        text:"First";
+                    }
+                    cfirst := LineEdit{
+        
+                    }
+                    Text{
+                        text:"MI";
+                    }
+                    cm := LineEdit{ 
+        
+                    }
+                    Text{
+                        text:"Last";
+                    }
+                    clast := LineEdit { 
+        
+                    }
+                    Text{
+                        text:"School ID";
+                    }
+                    id := LineEdit{
+        
+                    }
+                }
+                HorizontalBox{ 
+                    padding-top: 0px;
+                    padding-left: 0px;
+                    padding: 3px;
+                    height: 30px;
+                    Text{
+                        text:"Class Year";
+                    }
+                    cclass := LineEdit{
+                        edited => { self.text = self.text.is_float() ? self.text : ""; }
+                    }
+                    Text{
+                        text:"Induction Year";
+                    }
+                    cinduction := LineEdit{
+                        edited => { self.text = self.text.is_float() ? self.text : ""; }
+                    }
+                
+                }
+                Button{
+                    text:"Create Person";
+                    clicked => {
+                        Interface.create-person([cfirst.text,cm.text,clast.text,cclass.text,cinduction.text,id.text]); 
+                        clist.model = Search.get-students();
+                        ssearch.search();
+                    }
+
+                }
+                clist := StandardListView{
+                    model: Search.get-students();
+                }
+            }
+        }
+        Tab{
+            title:"Inducton Attendance";
+
+
+            ListView { 
+                for can in Interface.get-libo-induction-canidates(force-update-workaround): HorizontalLayout{
+                    Text { 
+                        text: can.first_name + " " + can.last_name;
+                        horizontal-alignment: center;
+                     }
+                    Button { 
+                        text: "Attended";
+                        clicked => { 
+                            Interface.make-decision-on-libo-canidate(can.id,true);
+                            force-update-workaround += 1;
+                         }
+                     }
+                    Button { 
+                        text: "MIA";
+                        clicked => { 
+                            Interface.make-decision-on-libo-canidate(can.id,false);
+                            force-update-workaround += 1;
+                         }
+                     }
+
+                }
+             }
+            
+        }
+        Tab{
+            title:"Export";
+            Button { 
+                text: "Export";
+                clicked => {
+                    Interface.export-induction-logs();
+                }
+            }
+        }
+    }
+}
